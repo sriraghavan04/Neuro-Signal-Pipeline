@@ -1,7 +1,7 @@
 # 🧠 NeuroSignal Pipeline
 
 > **Automated model for analysis of .IQ and .wav files along with signal parameter extraction**  
-> **Smart India Hackathon 2025 (PS ID: 26147)**  
+> **Smart India Hackathon 2026 (PS ID: 26147)**  
 > **Theme:** Space Technology | **Organization:** National Technical Research Organisation (NTRO)
 
 ---

@@ -1,6 +1,6 @@
 /* ==========================================================================
    NeuroSignal Pipeline - Application & UI Glue Logic
-   NTRO SIH Solution 2025 - PS 26147
+   NTRO SIH Solution 2026 - PS 26147
    ========================================================================== */
 
 let activeSignal = null;
