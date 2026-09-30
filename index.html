@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroSignal Pipeline | Blind IQ & WAV Signal Analyzer (NTRO SIH 2025)</title>
+    <meta name="description" content="NeuroSignal Pipeline - Automated model for analysis of .IQ and .wav files along with signal parameter extraction, 1D-CNN AMC, GF(2) blind de-interleaving, and frame correlation for NTRO SIH 2025.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body class="dark-theme">
+
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+        <div class="brand">
+            <div class="logo-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#00F0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="#7000FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="#FF007A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <div class="title-row">
+                    <h1>NeuroSignal Pipeline</h1>
+                    <span class="badge sih-badge">SIH 2025 PS 26147</span>
+                    <span class="badge ntro-badge">NTRO Space Tech</span>
+                    <span class="badge ai-badge">1D-CNN + DSP</span>
+                </div>
+                <p class="subtitle">Blind Signal Intelligence & Parameter Extraction Engine (.IQ Baseband / .wav Analytic Hilbert)</p>
+            </div>
+        </div>
+
+        <div class="header-status">
+            <div class="status-item">
+                <span class="label">MODE:</span>
+                <span id="active-file-type" class="value highlight-cyan">Synthetic Generator (QPSK)</span>
+            </div>
+            <div class="status-item">
+                <span class="label">SAMPLING $f_s$:</span>
+                <span id="active-fs" class="value">2.000 MHz</span>
+            </div>
+            <div class="status-item">
+                <span class="label">NEUROSIGNAL CORE:</span>
+                <span id="system-status" class="status-pill ready"><span class="dot"></span> ONLINE</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <main class="app-container">
+
+        <!-- Sidebar: Control Panel & File Operations -->
+        <aside class="sidebar-panel">
+
+            <!-- File Upload & Data Source Section -->
+            <section class="panel-box">
+                <div class="panel-header">
+                    <h3><span class="icon">📥</span> Phase 1: Dual Ingestion & Pre-Processing</h3>
+                </div>
+                <div class="panel-body">
+                    <!-- Tab Selector -->
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" id="tab-upload-btn" onclick="switchInputTab('upload')">File Ingestion</button>
+                        <button class="tab-btn" id="tab-synth-btn" onclick="switchInputTab('synth')">Synthesizer</button>
+                    </div>
+
+                    <!-- Upload Tab -->
+                    <div id="tab-upload" class="tab-content active">
+                        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p class="drop-title">Select or Drop .IQ / .wav File</p>
+                            <p class="drop-hint">Supports <code>.IQ</code> (Float32/Int16/UInt8) & <code>.wav</code> (Hilbert analytic conversion)</p>
+                            <input type="file" id="file-input" accept=".iq,.wav,.raw,.bin" style="display:none" onchange="handleFileSelect(event)">
+                        </div>
+
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label for="iq-format-select">Signal Ingestion Mode:</label>
+                            <select id="iq-format-select">
+                                <option value="float32">IQ Complex Float32 (I32 + jQ32)</option>
+                                <option value="int16">IQ Complex Int16 (I16 + jQ16)</option>
+                                <option value="uint8">IQ Complex UInt8 (RTL-SDR raw)</option>
+                                <option value="wav_hilbert">WAV Real IF -> Hilbert Analytic Transform x_a[n]</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="sample-rate-input">Baseband Sampling Rate $f_s$ (Hz):</label>
+                            <input type="number" id="sample-rate-input" value="2000000" step="10000">
+                        </div>
+                    </div>
+
+                    <!-- Synth Tab -->
+                    <div id="tab-synth" class="tab-content">
+                        <div class="form-group">
+                            <label for="synth-mod">Modulation Scheme:</label>
+                            <select id="synth-mod">
+                                <option value="QPSK" selected>QPSK (Quadrature PSK)</option>
+                                <option value="BPSK">BPSK (Binary PSK)</option>
+                                <option value="8PSK">8-PSK (8 Phase Shift Keying)</option>
+                                <option value="16QAM">16-QAM (Quadrature AM)</option>
+                                <option value="2FSK">2-FSK (Frequency Shift Keying)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="synth-interleave">Blind Interleaver Structure:</label>
+                            <select id="synth-interleave">
+                                <option value="Block">Block Interleaver (8x16 Matrix)</option>
+                                <option value="Convolutional">Convolutional Interleaver (Shift Delays)</option>
+                                <option value="Diagonal">Diagonal Interleaver</option>
+                                <option value="PseudoRandom">Pseudo-Random Interleaver (LFSR Map)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="synth-fec">FEC Code Structure:</label>
+                            <select id="synth-fec">
+                                <option value="Convolutional_Viterbi">Convolutional Code (r=1/2, K=7 Viterbi)</option>
+                                <option value="ReedSolomon">Reed-Solomon RS(15,11)</option>
+                                <option value="LDPC">LDPC (Parity Matrix H)</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="synth-snr">SNR (dB):</label>
+                                <input type="number" id="synth-snr" value="16" min="-5" max="40">
+                            </div>
+                            <div class="form-group half">
+                                <label for="synth-rate">Symbol Rate $R_s$:</label>
+                                <input type="number" id="synth-rate" value="100000">
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary full-width" onclick="generateSyntheticSignal()">⚡ Generate Test IQ Baseband</button>
+                    </div>
+
+                    <!-- Auto Analysis Trigger -->
+                    <button class="btn btn-primary full-width run-btn" onclick="runAutomatedAnalysis()">
+                        <span class="sparkle">🧠</span> EXECUTE NEUROSIGNAL PIPELINE
+                    </button>
+                </div>
+            </section>
+
+            <!-- Extracted Signal Parameters Panel -->
+            <section class="panel-box results-box">
+                <div class="panel-header">
+                    <h3><span class="icon">🔍</span> Extracted Signal Intelligence</h3>
+                    <span id="confidence-badge" class="badge level-high">1D-CNN 98.4%</span>
+                </div>
+                <div class="panel-body">
+                    <div class="param-grid">
+                        <div class="param-card">
+                            <span class="param-label">Est. Bandwidth (3dB)</span>
+                            <span class="param-value highlight-cyan" id="res-bw">240.0 kHz</span>
+                        </div>
+                        <div class="param-card">
+                            <span class="param-label">AI Modulation Class</span>
+                            <span class="param-value highlight-magenta" id="res-mod">QPSK</span>
+                        </div>
+                        <div class="param-card">
+                            <span class="param-label">Symbol Rate ($R_s$)</span>
+                            <span class="param-value" id="res-srate">100.0 kSym/s</span>
+                        </div>
+                        <div class="param-card">
+                            <span class="param-label">Estimated SNR</span>
+                            <span class="param-value highlight-green" id="res-snr">16.4 dB</span>
+                        </div>
+                        <div class="param-card">
+                            <span class="param-label">GF(2) Interleaver</span>
+                            <span class="param-value" id="res-interleave">Block (8x16)</span>
+                        </div>
+                        <div class="param-card">
+                            <span class="param-label">FEC H-Matrix Code</span>
+                            <span class="param-value" id="res-fec">Viterbi K=7</span>
+                        </div>
+                    </div>
+
+                    <div class="correlation-status-box" id="corr-status-box">
+                        <div class="box-title">Phase 5 Frame Marker Sync</div>
+                        <div class="status-detail">
+                            <span id="sync-pattern-name">Sync Word: 0x1ACFFC1D</span>
+                            <span id="sync-score-val" class="score-badge">Marker Synced (BER 0.0%)</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5-Phase Pipeline Checklist from Presentation Slide 3 -->
+            <section class="panel-box">
+                <div class="panel-header">
+                    <h3><span class="icon">🚀</span> NeuroSignal 5-Phase Flow</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="stage-pipeline">
+                        <div class="stage-item completed" id="stage-1">
+                            <div class="stage-num">1</div>
+                            <div class="stage-info">
+                                <span class="stage-title">Phase 1: Ingestion & Pre-Processing</span>
+                                <span class="stage-sub">Hilbert Transform x_a[n] & Wiener Filter</span>
+                            </div>
+                        </div>
+                        <div class="stage-item" id="stage-2">
+                            <div class="stage-num">2</div>
+                            <div class="stage-info">
+                                <span class="stage-title">Phase 2: Spectral Parameter Extraction</span>
+                                <span class="stage-sub">Welch PSD Bandwidth & Cyclostationary R_s</span>
+                            </div>
+                        </div>
+                        <div class="stage-item" id="stage-3">
+                            <div class="stage-num">3</div>
+                            <div class="stage-info">
+                                <span class="stage-title">Phase 3: Synchronization & 1D-CNN AMC</span>
+                                <span class="stage-sub">Gardner TED, Costas Loop & Cumulants</span>
+                            </div>
+                        </div>
+                        <div class="stage-item" id="stage-4">
+                            <div class="stage-num">4</div>
+                            <div class="stage-info">
+                                <span class="stage-title">Phase 4: Blind De-Interleaver & FEC</span>
+                                <span class="stage-sub">GF(2) Gauss-Jordan & Viterbi/RS Decoder</span>
+                            </div>
+                        </div>
+                        <div class="stage-item" id="stage-5">
+                            <div class="stage-num">5</div>
+                            <div class="stage-info">
+                                <span class="stage-title">Phase 5: Frame Correlation & Payload</span>
+                                <span class="stage-sub">Preamble Sync & Header/Payload Split</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </aside>
+
+        <!-- Main Display Deck: DSP Visualizations & Diagnostics -->
+        <div class="center-workspace">
+
+            <!-- Visualization Tabs Header -->
+            <div class="deck-header">
+                <div class="deck-tabs">
+                    <button class="deck-tab-btn active" onclick="switchDeckTab('spectral')">🌐 Welch PSD & Spectrogram</button>
+                    <button class="deck-tab-btn" onclick="switchDeckTab('constellation')">✨ Constellation & Gardner TED</button>
+                    <button class="deck-tab-btn" onclick="switchDeckTab('pipeline')">🔬 GF(2) Matrix Rank & FEC Trellis</button>
+                    <button class="deck-tab-btn" onclick="switchDeckTab('bitstream')">💻 Frame Sync & Decoded Payload</button>
+                </div>
+                <div class="deck-actions">
+                    <button class="btn btn-outline btn-sm" onclick="exportGRCScript()">📥 Export GRC Script</button>
+                    <button class="btn btn-outline btn-sm" onclick="exportReportJSON()">📄 Export SIH Report JSON</button>
+                </div>
+            </div>
+
+            <!-- Tab 1: Welch PSD & Spectrogram -->
+            <div id="deck-spectral" class="deck-view active">
+                <div class="grid-2col">
+                    <div class="viz-card">
+                        <div class="viz-card-header">
+                            <span>Welch's Power Spectral Density (PSD) & Bandwidth Detection</span>
+                            <div class="viz-controls">
+                                <label>Window:</label>
+                                <select id="fft-window-select" onchange="updateDSPVisuals()">
+                                    <option value="hann">Hann</option>
+                                    <option value="hamming">Hamming</option>
+                                    <option value="blackman">Blackman</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="psd-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="viz-card">
+                        <div class="viz-card-header">
+                            <span>Live Waterfall Spectrogram (Time vs Frequency vs Power)</span>
+                            <span class="live-indicator">LIVE RF WATERFALL</span>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="waterfall-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Constellation & Gardner TED / Costas Loop -->
+            <div id="deck-constellation" class="deck-view">
+                <div class="grid-2col">
+                    <div class="viz-card">
+                        <div class="viz-card-header">
+                            <span>Costas Loop Recovered I/Q Constellation</span>
+                            <span class="stats-tag" id="evm-tag">EVM: 3.8% (RMS)</span>
+                        </div>
+                        <div class="canvas-container center-canvas">
+                            <canvas id="constellation-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="viz-card">
+                        <div class="viz-card-header">
+                            <span>Phase 1/3 Time Domain Waveform (Analytic I & Q Channels)</span>
+                            <div class="channel-legend">
+                                <span class="legend-i">● In-Phase (I)</span>
+                                <span class="legend-q">● Quadrature (Q)</span>
+                            </div>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="time-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: GF(2) Matrix Rank Analysis & FEC Trellis -->
+            <div id="deck-pipeline" class="deck-view">
+                <div class="engine-deck">
+                    <div class="viz-card half-flex">
+                        <div class="viz-card-header">
+                            <span>Phase 4: GF(2) Gauss-Jordan Interleaver Rank Analysis</span>
+                            <select id="manual-interleave-select" onchange="recalculateDeinterleaving()">
+                                <option value="Block">Block De-interleaver</option>
+                                <option value="Convolutional">Convolutional De-interleaver</option>
+                                <option value="Diagonal">Diagonal De-interleaver</option>
+                                <option value="PseudoRandom">Pseudo-Random De-interleaver</option>
+                            </select>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="matrix-canvas"></canvas>
+                        </div>
+                        <div class="matrix-info">
+                            <p id="matrix-desc"><strong>Gauss-Jordan over GF(2):</strong> Computes matrix rank minima on $l \times l$ bit sub-matrices to deduce blind interleaver depth without metadata.</p>
+                        </div>
+                    </div>
+
+                    <div class="viz-card half-flex">
+                        <div class="viz-card-header">
+                            <span>Viterbi Trellis & Parity Check Inspector ($H$ Matrix)</span>
+                            <span class="stats-tag" id="fec-ber-tag">Pre-FEC BER: 1.4e-2 | Post-FEC BER: 0.0</span>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="trellis-canvas"></canvas>
+                        </div>
+                        <div class="fec-details">
+                            <p><strong>Polynomial Reconstruction:</strong> Viterbi Constraint Length $K=7$, Generators $G_1=171_8$ (0x79), $G_2=133_8$ (0x5B). Traceback Depth = 35.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Frame Correlation & Decoded Payload -->
+            <div id="deck-bitstream" class="deck-view">
+                <div class="grid-2col-top">
+                    <div class="viz-card">
+                        <div class="viz-card-header">
+                            <span>Phase 5: CCSDS / Barker Sync Marker Correlation</span>
+                            <span class="stats-tag">Preamble Header Detection</span>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="correlation-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="viz-card">
+                        <div class="viz-card-header">
+                            <span>Decoded Unencrypted Payload Stream (Hex / ASCII)</span>
+                            <button class="btn btn-outline btn-xs" onclick="copyBitstream()">Copy Hex</button>
+                        </div>
+                        <div class="bitstream-container">
+                            <div class="hex-dump-header">
+                                <span>OFFSET</span>
+                                <span>HEX PAYLOAD</span>
+                                <span>ASCII / FIELD</span>
+                            </div>
+                            <div id="hex-dump-body" class="hex-dump-body">
+                                <!-- Populated dynamically by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Modal for Code / GRC Export -->
+    <div id="export-modal" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modal-title">NeuroSignal Python / GNU Radio Companion Script</h3>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p id="modal-desc">Copy or save this GNU Radio Python script implementing the NeuroSignal Pipeline architecture for live USRP, HackRF, or RTL-SDR receiver hardware:</p>
+                <textarea id="modal-code" class="code-area" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                <button class="btn btn-primary" onclick="downloadCodeFile()">📥 Download Script (.py)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="dsp.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
